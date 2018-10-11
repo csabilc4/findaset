@@ -10,6 +10,7 @@ FORMS = ['Elips', 'Amorf', 'Tiles']
 FILLS = ['Full', 'Strip', 'Empty']
 NUMBERS = ['One', 'Two', 'Three']
 
+
 def generateAllCardsWithProperties():
 	'''legenerálja a teljes kártyapaklit (81db (3*3*3*3) kártya)'''
 	allCardData = {}
@@ -25,56 +26,63 @@ def generateAllCardsWithProperties():
 	return allCardData
 
 
-def getRandomCards(allCardData = {}, redeal = False, cardsOfSet = (), lastCardNumbersOnTable = []):
+def getRandomCards(allCardData = {},
+				   redeal = False,
+				   cardsInSet = (),
+				   lastCardNumbersOnTable = [],
+				   freeCardsInPack = [],
+				   addCards = False):
+
 	'''kiválaszt 12db random lapot a kezdéshez'''
 
 	cardNum = 12
-	variation = 3**4
-	random_cards = {}
+	variation = 3 ** 4
+	onTableCardsData = {}
+
+	print '--------NEW ROUND-------'
 
 	if redeal == False:
-		randomCardNumbersOnTable = random.sample(range(1, variation + 1), cardNum)
+		cardsOnTable = random.sample(freeCardsInPack, cardNum)
 
-		print 'random cards: ', randomCardNumbersOnTable
+		print '\tStart random cards: ', cardsOnTable
+
+		freeCardsInPack = tuple(set(freeCardsInPack) - set(cardsOnTable))
 	else:
 		print '\tlast card numbers: ', lastCardNumbersOnTable
 
-		reCalcPack()
+		if addCards == False:
+			for cc in cardsInSet:
+				lastCardNumbersOnTable.remove(cc)
 
-		lastFreeCards = range(1, variation + 1)
-		# freeCardsInPack = tuple(set(range(1, variation + 1)) - set(lastCardNumbersOnTable))
-		freeCardsInPack = tuple(set(lastFreeCards) - set(lastCardNumbersOnTable))
-		print len(freeCardsInPack), 'db különbség: ', freeCardsInPack
-
-		for cc in cardsOfSet:
-			lastCardNumbersOnTable.remove(cc)
 		reducedCardNumbersOnTable = lastCardNumbersOnTable
 		# print '\treduced card numbers: ', reducedCardNumbersOnTable
 
-		newCards = random.sample(freeCardsInPack, 3)
+		# print len(freeCardsInPack)
+		if len(freeCardsInPack) > 2:
+			newCards = random.sample(freeCardsInPack, 3)
+
+		cardsOnTable = reducedCardNumbersOnTable + newCards
+
 		print '\tnew cards: ', newCards
 		print '\treduced card numbers: ', reducedCardNumbersOnTable
+		print '\tnew cards on table: ', cardsOnTable
+		print '\tset cards: ', cardsInSet
 
-		randomCardNumbersOnTable = reducedCardNumbersOnTable + newCards
+		freeCardsInPack = tuple(set(freeCardsInPack) - set(newCards))
 
-		# print '\tset kártyái:', cardsOfSet
-		print '\tnew random cards: ', randomCardNumbersOnTable
-
+	# get card data
 	i = 1
-	for c in randomCardNumbersOnTable:
-		random_cards[c] = allCardData[c]
+	for c in cardsOnTable:
+		onTableCardsData[c] = allCardData[c]
 		i += 1
 
-	# print random_cards
-	return random_cards, randomCardNumbersOnTable
-
-
-def reCalcPack():
-	pass
+	print '\tnumber of free cards in pack: ', len(freeCardsInPack)
+	return onTableCardsData, cardsOnTable, freeCardsInPack
 
 
 def search_intersections_of_2(set1, set2):
 	'''összhasonlít 2db 3as szettet és veszi a közös tulajdonságokat'''
+
 	return set(set1).intersection(set2)
 
 
@@ -93,13 +101,12 @@ def search_intersections_of_3(currCombi, set1, set2, set3):
 	bFoundSet = False
 	if sum_12 == sum_13 and sum_12 == sum_23 and sum_12 != 1:
 		bFoundSet = True
-		print 'SET FOUND!!!', currCombi	#, sum_12, sum_13, sum_23
 
 	return bFoundSet, currCombi
 
 
 def checkCards(cardsOnTable):
-	'''generálja a létező összes 3as kombót a 12db lapból, és ezeket csekkolja'''
+	'''legenerálja a létező összes 3as kombót az asztalon lévő lapokból, és ezeken csekkolja a SET-eket'''
 
 	for cardNum, values in cardsOnTable.items():
 		# print cardNum, values
@@ -113,58 +120,47 @@ def checkCards(cardsOnTable):
 															  cardsOnTable[currCombination[0]],
 															  cardsOnTable[currCombination[1]],
 															  cardsOnTable[currCombination[2]])
+
 		if bFoundSet == True:
-			# break
+			print '  ***SET FOUND!!!', setCombination
 			return setCombination
-			# getRandomCards()
+
+	print 'NO SET FOUND!!! (add 3 more cards to table)'
 
 	return None
+
 
 def main():
 	allCardData = generateAllCardsWithProperties()
 
 	reDeal = False
-	noMoreCards = True
-	setCombi = None
-	cardsOfSet = ()
+	addCards = False
+	cardsInSet = ()
 	lastCardNumbersOnTable = []
+	freeCardsInPack = range(1, 81 + 1)
 
-	for t in range(4):
-		cardsData, randomCardNumbersOnTable = getRandomCards(allCardData = allCardData,
-															 redeal = reDeal,
-															 cardsOfSet = cardsOfSet,
-															 lastCardNumbersOnTable = lastCardNumbersOnTable)
+	for t in range(27):
+		cardsData, cardsOnTable, freeCardsInPack = getRandomCards(allCardData = allCardData,
+																			  redeal = reDeal,
+																			  cardsInSet = cardsInSet,
+																			  lastCardNumbersOnTable = lastCardNumbersOnTable,
+																			  freeCardsInPack = freeCardsInPack,
+																			  addCards = addCards)
 
-		setCombi = checkCards(cardsData)
-		if setCombi != None:
-			reDeal = True
-			# print setCombi
-			cardsOfSet = setCombi
-			lastCardNumbersOnTable = randomCardNumbersOnTable
+		if len(freeCardsInPack) == 0: break
 
-	# if setCombi:
-	# 	print setCombi
-	# else:
-	# 	print 'Nincs SET!'
+		cardsInSet = checkCards(cardsData)
+		reDeal = True
+		lastCardNumbersOnTable = cardsOnTable
 
-	# reDeal = False
-	# noMoreCards = True
-	# while 1:
-	# 	getRandomCards(redeal = False)
-	# 	setCombi = checkCards(getRandomCards(redeal = reDeal))
-	# 	if setCombi:
-	# 		reDeal = True
-	#
-	# 	if noMoreCards == True:
-	# 		break
-	#
-	# if setCombi:
-	# 	print setCombi
-	# else:
-	# 	print 'Nincs SET!'
+		if cardsInSet == None:
+			addCards = True
+		else:
+			addCards = False
+
+
+	#TODO le kell kezelni azt az esetet, ha nincs SET az asztalon, ekkor fel kell rakni még 3 kártyát stb....
 
 
 if __name__ == '__main__':
 	main()
-
-
