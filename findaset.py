@@ -19,6 +19,7 @@ def getRandomCards(allCardData = {},
 	cardNum = 12
 	onTableCardsData = {}
 
+	print '\n'
 	print '------------------------------------------------'
 	print '--------------------NEW ROUND-------------------'
 	print '------------------------------------------------'
@@ -57,7 +58,9 @@ def getRandomCards(allCardData = {},
 		onTableCardsData[c] = allCardData[c]
 		i += 1
 
-	print '\tnumber of free cards in pack: ', len(freeCardsInPack)
+	print 'A pakliban még ' + '{:d}'.format(len(freeCardsInPack)) + ' kártya van,' + \
+		' az asztalon lévő kártyák:'
+
 	return onTableCardsData, cardsOnTable, freeCardsInPack
 
 
@@ -90,7 +93,7 @@ def checkCards(cardsOnTable):
 	'''legenerálja a létező összes 3as kombót az asztalon lévő lapokból, és ezeken csekkolja a SET-eket'''
 
 	for cardNum, values in cardsOnTable.items():
-		print '%2.0d.számú kártya: %s' % (cardNum, ', '.join(values))
+		print '{:2d}'.format(cardNum) + '. számú kártya (' + '{}'.format(', '.join(values)) + ')'
 		# time.sleep(0.2)
 
 	print '------------------------------------------------'
@@ -104,7 +107,7 @@ def checkCards(cardsOnTable):
 															  cardsOnTable[currCombination[2]])
 
 		if bFoundSet == True:
-			print '  ***SET FOUND!!!', setCombination
+			print '***SET FOUND***' +  ', kártyák száma: ' + str(setCombination)
 			return setCombination
 
 	print 'NO SET FOUND!!! (add 3 more cards to table)'
@@ -121,7 +124,7 @@ def main():
 	lastCardNumbersOnTable = []
 	freeCardsInPack = range(1, 81 + 1)
 
-	while len(freeCardsInPack) > 0:
+	while len(freeCardsInPack) > 60:
 		cardsData, cardsOnTable, freeCardsInPack = getRandomCards(allCardData = allCardData,
 																			  redeal = reDeal,
 																			  cardsInSet = cardsInSet,
