@@ -5,60 +5,65 @@
 
 import collections
 
-COLOURS = ['Red', 'Green', 'Purple']
+COLOURS = ['Red', 'Green', 'Blue']
 FORMS = ['Elips', 'Amorf', 'Tiles']
 FILLS = ['Full', 'Strip', 'Empty']
 NUMBERS = ['One', 'Two', 'Three']
 
 
 def generateAllCardsWithProperties():
-	'''legenerálja a teljes kártyapaklit (81db (3*3*3*3) kártya)'''
-	allCardData = {}
-	num = 1
+    '''legenerálja a teljes kártyapaklit (81db (3*3*3*3) kártya)'''
+    allCardData = {}
+    num = 1
 
-	for colour in COLOURS:
-		for form in FORMS:
-			for fill in FILLS:
-				for number in NUMBERS:
-					allCardData[num] = [colour, form, fill, number]
-					num += 1
+    for fill in FILLS:
+        for colour in COLOURS:
+            for form in FORMS:
+                for number in NUMBERS:
+                    allCardData[num] = [fill, colour, form, number]
+                    num += 1
 
-	return allCardData
+    return allCardData
+
 
 def buildCards(xx, c, a=10, b='20'):
-	'''na ez az'''
+    '''na ez az'''
 
-	# print 'aa'
+    # print 'aa'
 
-	pass
+    pass
 
 
 class va:
-	def __init__(self):
-		self.szam = 0
+    def __init__(self):
+        self.szam = 0
 
-	def nov(self):
-		self.szam += 1
+    def nov(self):
+        self.szam += 1
 
-		return self.szam
-	pass
+        return self.szam
+    pass
 
 
 def fa(*args, **kwargs):
 
-	print type(args), type(kwargs)
-
+    print type(args), type(kwargs)
 
 
 if __name__ == '__main__':
-	print 'TEST OK!'
-	# buildCards()
+    print 'TEST OK!'
+    # buildCards()
 
-	# sz = va()
-	# sz2 =va()
-	#
-	# print sz.nov()
-	# print sz2.nov()
-	#
-	# fa(1, 2, 3, 4, aa = 'a', bb = 'b', cc = 'c', dd = 'd')
+    # all = generateAllCardsWithProperties()
+    # print type(all)
+    # for key, value in all.items():
+    #     print key, value
+
+    # sz = va()
+    # sz2 =va()
+    #
+    # print sz.nov()
+    # print sz2.nov()
+    #
+    # fa(1, 2, 3, 4, aa = 'a', bb = 'b', cc = 'c', dd = 'd')
 
