@@ -5,14 +5,20 @@ import random
 import itertools
 import time
 import cards
-import cProfile, pstats, io
 import PIL.Image
 import PIL.ImageFilter
-# from PIL import Image
+import PIL.ImageDraw
+import PIL.ImageFont
+import PIL.ImageEnhance
+
 import sys
 import os
+import pyautogui
+import copy
 
-print PIL.Image.BOX
+# print pyautogui.locateOnScreen('snip.jpg')
+
+# exit()
 
 #pylint: disable=mixed-indentation
 #pylint: disable=bad-continuation
@@ -22,63 +28,69 @@ print PIL.Image.BOX
 #pylint: disable=bad-whitespace
 #pylint: disable=wrong-import-order
 
-PICTS_DIR_PATH = os.path.join(os.getcwd(), 'cards')
 
-def getRandomCards(allCardData = {},
-                   redeal = False,
+
+TEST = False
+allCardData = cards.generateAllCardsWithProperties()
+PICTS_DIR_PATH = os.path.join(os.getcwd(), 'cards')
+pict_width = 194
+pict_height = 108
+
+
+def getCards(reDeal = False,
                    cardsInSet = (),
                    lastCardNumbersOnTable = [],
-                   freeCardsInPack = [],
-                   addCards = False):
+                   freeCardsInPack = []):
 
     '''kiválaszt 12db random lapot a kezdéshez'''
 
-    cardNum = 12
-    onTableCardsData = {}
+    defaultCardNum = 12
 
     print '\n'
     print '------------------------------------------------'
     print '--------------------NEW ROUND-------------------'
     print '------------------------------------------------'
 
-    if redeal is False:
-        cardsOnTable = random.sample(freeCardsInPack, cardNum)
-        # print '\tStart random cards: ', cardsOnTable
+    if reDeal:
+        # print '\tlast card numbers:', len(lastCardNumbersOnTable), lastCardNumbersOnTable
+        # print '\tcardsInSet:', cardsInSet
+        # print '\tlastCardNumbersOnTable', len(lastCardNumbersOnTable)
+        # print '\tnewCardNum:', newCardNum, len(cardsInSet)
 
-        freeCardsInPack = tuple(set(freeCardsInPack) - set(cardsOnTable))
-    else:
-        # print '\tlast card numbers: ', lastCardNumbersOnTable
-
-        if addCards is False:
+        if cardsInSet:
             for cc in cardsInSet:
                 lastCardNumbersOnTable.remove(cc)
 
+            newCardNum = min(defaultCardNum - len(lastCardNumbersOnTable), len(freeCardsInPack))
+        else:
+            newCardNum = 3
+
         reducedCardNumbersOnTable = lastCardNumbersOnTable
-        # print '\treduced card numbers: ', reducedCardNumbersOnTable
-
-        # print len(freeCardsInPack)
-        if len(freeCardsInPack) > 2:
-            newCards = random.sample(freeCardsInPack, 3)
-
+        newCards = random.sample(freeCardsInPack, newCardNum)
         cardsOnTable = reducedCardNumbersOnTable + newCards
-
-        # print '\tnew cards: ', newCards
-        # print '\treduced card numbers: ', reducedCardNumbersOnTable
-        # print '\tnew cards on table: ', cardsOnTable
-        # print '\tset cards: ', cardsInSet
-
         freeCardsInPack = tuple(set(freeCardsInPack) - set(newCards))
+    else:
+        if TEST:
+            cardsOnTable = [1, 2, 3, 4, 5, 6, 7, 8, 9, 20, 21, 22]
+            # cardsOnTable = random.sample(freeCardsInPack, defaultCardNum)
+        else:
+            cardsOnTable = random.sample(freeCardsInPack, defaultCardNum)
 
-    # get card data
-    i = 1
-    for c in cardsOnTable:
-        onTableCardsData[c] = allCardData[c]
-        i += 1
+        # print '\tStart random cards: ', cardsOnTable
+        freeCardsInPack = tuple(set(freeCardsInPack) - set(cardsOnTable))
+
+    # print '\tcardsOnTable', cardsOnTable
 
     print 'A pakliban meg ' + '{:d}'.format(len(freeCardsInPack)) + ' kartya van,' + \
           ' az asztalon levo kartyak:'
 
-    return onTableCardsData, cardsOnTable, freeCardsInPack
+    return cardsOnTable, freeCardsInPack
+
+
+def getCardData_list(cardnum):
+    '''visszadja az adptt kártya tulajdonságait'''
+
+    return allCardData[cardnum]
 
 
 def search_intersections_of_2(set1, set2):
@@ -87,7 +99,7 @@ def search_intersections_of_2(set1, set2):
     return set(set1).intersection(set2)
 
 
-def search_intersections_of_3(currCombi, set1, set2, set3):
+def search_intersections_of_3(currCombi):
     '''összhasonlítja a 3as szetteket hármasával:
     SET, ha:
     -3 tulajdonság megegyezik vagy,
@@ -95,145 +107,180 @@ def search_intersections_of_3(currCombi, set1, set2, set3):
     -nincs egyező tulajdonság
     '''
 
+    set1 = getCardData_list(currCombi[0])
+    set2 = getCardData_list(currCombi[1])
+    set3 = getCardData_list(currCombi[2])
+
     sum_12 = search_intersections_of_2(set1, set2)
     sum_13 = search_intersections_of_2(set1, set3)
     sum_23 = search_intersections_of_2(set2, set3)
 
-    bFoundSet = False
     if sum_12 == sum_13 and sum_12 == sum_23 and sum_12 != 1:
-        bFoundSet = True
+        return True
 
-    return bFoundSet, currCombi
+    return False
 
 
 def checkCards(cardsOnTable):
     '''legenerálja a létező összes 3as kombót az asztalon lévő lapokból, és ezeken csekkolja a SET-eket'''
 
-    cardsOnTablePictName = []
-    for cardNum, values in cardsOnTable.items():
-        # print '{:2d}'.format(cardNum) + '. szamu kartya (' + '{}'.format(', '.join(values)) + ')'
-        cardsOnTablePictName.append(values[0] + '_' + values[1] + '_'  + values[2] + '_' + values[3])
-        # print cardPictName
-        # TODO ki kell rakni az asztalra a kártyák képeit
-        # TODO meg kell valahogy jelölni a SET kártyáit (szines körvonal???)
+    # ii = 1
+    # for cardNum, values in cardsData.items():
+    #     print ii, '{:2d}'.format(cardNum) + '. szamu kartya'    # (' + '{}'.format(', '.join(values)) + ')'
+    #     ii += 1
 
-
+    for i, cardNum in enumerate(cardsOnTable):
+        print i + 1, '{:4d}'.format(cardNum) + '. szamu kartya'
     print '------------------------------------------------'
     # time.sleep(2)
 
-    allCombination = itertools.combinations(cardsOnTable.keys(), 3)
+    cardsInSet = []
+    temp_cardsOnTable = copy.copy(cardsOnTable)
+    bFoundSet = True
+    while bFoundSet:
+        allCombination = itertools.combinations(temp_cardsOnTable, 3)
 
-    cardsOnTablePictName = []
-    for cardNum, values in cardsOnTable.items():
-        cardsOnTablePictName.append(values[0] + '_' + values[1] + '_'  + values[2] + '_' + values[3])
+        for currCombination in allCombination:
+            bFoundSet = search_intersections_of_3(currCombination)
 
-    cardPictsNamesWithSet = []
-    for currCombination in allCombination:
-        # print currCombination
+            if bFoundSet:
+                print '***SET FOUND***' + ', kartyak szama: ' + str(currCombination)
+                print currCombination[0], getCardData_list(currCombination[0])
+                print currCombination[1], getCardData_list(currCombination[1])
+                print currCombination[2], getCardData_list(currCombination[2])
 
-        bFoundSet, setCombination = search_intersections_of_3(currCombination,
-                                                              cardsOnTable[currCombination[0]],
-                                                              cardsOnTable[currCombination[1]],
-                                                              cardsOnTable[currCombination[2]])
+                for cc in currCombination:
+                    temp_cardsOnTable.remove(cc)
+                    cardsInSet.append(cc)
 
-        if bFoundSet:
-            print '***SET FOUND***' +  ', kartyak szama: ' + str(setCombination)
-            print setCombination[0], cardsOnTable[setCombination[0]]
-            print setCombination[1], cardsOnTable[setCombination[1]]
-            print setCombination[2], cardsOnTable[setCombination[2]]
+                break
 
-            for i in range(3):
-                cardPictsNamesWithSet.append(cardsOnTable[setCombination[i]][0] + '_' +
-                                             cardsOnTable[setCombination[i]][1] + '_' +
-                                             cardsOnTable[setCombination[i]][2] + '_' +
-                                             cardsOnTable[setCombination[i]][3])
+    drawCardsWithSet(cardsOnTable, cardsInSet)
 
-            drawCardsWithSet(cardsOnTablePictName, cardPictsNamesWithSet)
+    if len(cardsInSet) == 0:
+        print 'NO SET FOUND!!!'
 
-            return setCombination
-
-    print 'NO SET FOUND!!! (add 3 more cards to table)'
-    return None
+    return cardsInSet
 
 
-def drawCardsWithSet(cardsOnTablePictName, cardPictsNamesWithSet):
+def drawCardsWithSet(cardsOnTable, cardsInSet):
 
-    pict_width = 194
-    pict_height = 108
-    new_pict = PIL.Image.new(mode = 'RGB', size=(pict_width * 4, pict_height * 3))
+    # print
+    # print 'cardsOnTable:', cardsOnTable
+    # print 'cardsInSet:', cardsInSet
+    # print
 
-    # print cardPictsNamesWithSet
+    list_cardsToShowPict = []
+    for cardNum in cardsOnTable:
+        if cardNum in allCardData:
+            values = allCardData[cardNum]
+            list_cardsToShowPict.append(values[0] + '_' +
+                                        values[1] + '_' +
+                                        values[2] + '_' +
+                                        values[3])
 
-    for i, table_pict in enumerate(cardsOnTablePictName):
+
+    number_of_rows_in_table = 4
+    number_of_cols_in_table = 5
+    new_pict = PIL.Image.new(mode = 'RGB', size=(pict_width * number_of_rows_in_table, pict_height * number_of_cols_in_table))
+
+    for i, cardInTable in enumerate(cardsOnTable):
+        table_pict = list_cardsToShowPict[i]
         pictName = table_pict + '.png'
         pictPath = os.path.join(PICTS_DIR_PATH, pictName)
         orig_pict = PIL.Image.open(pictPath)
         copy_pict = orig_pict.copy()
 
-        # highlight set cards
+        # highlight SET cards
         bResizePict = False
-        if table_pict in cardPictsNamesWithSet:
-            # mod_pict = copy_pict.filter(PIL.ImageFilter.CONTOUR)
-            mod_pict = copy_pict
-        else:
-            # mod_pict = copy_pict.convert(mode = '1')
-            bResizePict = True
-            mod_pict = copy_pict.resize((pict_width / 2 , pict_height / 2))
+        if cardInTable in cardsInSet: # SET card!
+            cardIndex = (cardsInSet.index(cardInTable))
+            setNumToPrint = ((cardIndex - (cardIndex % 3)) / 3) + 1
 
-        pictPosX = (i % 4) * pict_width + pict_width / 4 * bResizePict
-        pictPosY = ((i - (i % 4)) / 4) * pict_height + pict_height / 4 * bResizePict
-        # print table_pict
-        new_pict.paste(mod_pict, box = (pictPosX, pictPosY))
+            mod_pict = copy_pict
+            draw = PIL.ImageDraw.Draw(mod_pict)
+            fnt = PIL.ImageFont.truetype('arial.ttf', 20)
+            draw.text((5, 5), str(setNumToPrint), font=fnt, fill=(255, 40, 0, 0))
+            del draw
+
+            # draw = PIL.ImageDraw.Draw(mod_pict)
+            # draw.line((0, 0) + mod_pict.size, fill = 128)
+            # draw.line((0, mod_pict.size[1], mod_pict.size[0], 0), fill = 128)
+            # del draw
+        else:
+            bResizePict = True
+            mod_pict = copy_pict.resize((int(pict_width * 0.8), int(pict_height * 0.8)))
+            enh = PIL.ImageEnhance.Color(mod_pict)
+            enh.enhance(0)
+            del enh
+
+        pictPosX = (i % 4) * pict_width + int(pict_width * 0.1) * bResizePict
+        pictPosY = ((i - (i % 4)) / 4) * pict_height + int(pict_height * 0.1) * bResizePict
+        new_pict.paste(mod_pict, box=(pictPosX, pictPosY))
 
     new_pict.show()
 
-    # TODO copyzom a curr képet és betolom a newPict-be, startpos a left-top corner
-    # TODO kell a kép mérete pixelben az eltoláshoz
-    # new_pict.paste(copy_pict)
-    # pictPath = os.path.join(PICTS_DIR_PATH, pictName)
-    # # print pictPath
-    # # pict = PIL.Image.Image()
-    # orig_pict = PIL.Image.open(pictPath)
-    # copy_pict = orig_pict.copy()
+
+def drawCustomCards_forTest(list_cardsToShow):
+
+    list_cardsToShowPict = []
+    for cardNum in list_cardsToShow:
+        if cardNum in allCardData:
+            values = allCardData[cardNum]
+            list_cardsToShowPict.append(values[0] + '_' +
+                                        values[1] + '_' +
+                                        values[2] + '_' +
+                                        values[3])
+
+    number_of_rows_in_table = 3
+    number_of_cols_in_table = int(len(list_cardsToShow) / 3) + 1
+    new_pict = PIL.Image.new(mode = 'RGB', size=(pict_width * number_of_rows_in_table, pict_height * number_of_cols_in_table))
+
+    for i, table_pict in enumerate(list_cardsToShowPict):
+        pictName = table_pict + '.png'
+        pictPath = os.path.join(PICTS_DIR_PATH, pictName)
+        orig_pict = PIL.Image.open(pictPath)
+        copy_pict = orig_pict.copy()
+
+        bResizePict = False
+        mod_pict = copy_pict
+
+        pictPosX = (i % 3) * pict_width + pict_width / 4 * bResizePict
+        pictPosY = ((i - (i % 3)) / 3) * pict_height + pict_height / 4 * bResizePict
+        new_pict.paste(mod_pict, box=(pictPosX, pictPosY))
+
+    new_pict.show()
 
 
 def main():
-    allCardData = cards.generateAllCardsWithProperties()
-
-    # print PICTS_DIR_PATH
+    # drawCustomCards_forTest([55, 43, 22])
+    # exit()
 
     reDeal = False
-    addCards = False
     cardsInSet = ()
     lastCardNumbersOnTable = []
     freeCardsInPack = range(1, 81 + 1)
 
     while len(freeCardsInPack) > 70:
-        cardsData, cardsOnTable, freeCardsInPack = getRandomCards(allCardData = allCardData,
-                                                                  redeal = reDeal,
-                                                                  cardsInSet = cardsInSet,
-                                                                  lastCardNumbersOnTable = lastCardNumbersOnTable,
-                                                                  freeCardsInPack = freeCardsInPack,
-                                                                  addCards = addCards)
+        cardsOnTable, freeCardsInPack = getCards(reDeal = reDeal,
+                                                      cardsInSet = cardsInSet,
+                                                      lastCardNumbersOnTable = lastCardNumbersOnTable,
+                                                      freeCardsInPack = freeCardsInPack)
 
-        # if len(freeCardsInPack) == 0: break
-
-        cardsInSet = checkCards(cardsData)
+        cardsInSet = checkCards(cardsOnTable)      # lista a SET kártyáiról, lehet 3 nál több elemű is, ha több SET-et talál
         reDeal = True
-        lastCardNumbersOnTable = cardsOnTable
+        lastCardNumbersOnTable = cardsOnTable   # lista az asztalon lévő kártyákról
 
-        if cardsInSet is None:
-            addCards = True
-        else:
-            addCards = False
+    print
+    print 'VÉGE'
+    if cardsInSet:
+        for cc in cardsInSet:
+            cardsOnTable.remove(cc)
+    print 'Megmaradt kártyák: ', cardsOnTable
 
-
-#TODO le kell kezelni azt az esetet, ha nincs SET az asztalon, ekkor fel kell rakni még 3 kártyát stb....
-#TODO az utolsó 12 kártyát végig kell járni, az összes SET-et meg kell keresni
 
 if __name__ == '__main__':
     # before = time.time()
     main()
-# after = time.time()
-
-# print after - before
+    # after = time.time()
+    # print after - before
