@@ -78,6 +78,7 @@ def getCards(reDeal = False,
         # print '\tStart random cards: ', cardsOnTable
         freeCardsInPack = tuple(set(freeCardsInPack) - set(cardsOnTable))
 
+
     # print '\tcardsOnTable', cardsOnTable
 
     print 'A pakliban meg ' + '{:d}'.format(len(freeCardsInPack)) + ' kartya van,' + \
