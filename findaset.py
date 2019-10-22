@@ -43,7 +43,6 @@ def getCards(reDeal = False,
                    freeCardsInPack = []):
 
     '''kiválaszt 12db random lapot a kezdéshez'''
-
     defaultCardNum = 12
 
     print '\n'
